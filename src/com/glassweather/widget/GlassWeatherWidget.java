@@ -8,13 +8,11 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.SystemClock;
-import android.text.TextUtils;
 import android.widget.RemoteViews;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -29,19 +27,25 @@ import java.util.Locale;
 
 /**
  * 玻璃天气 —— 暗黑玻璃质感桌面天气小组件
- * 数据源：Open-Meteo（无需 API Key）
+ * 数据源：高德开放平台 v3 天气接口（Web 服务，免费，需 Key）
  */
 public class GlassWeatherWidget extends AppWidgetProvider {
 
     public static final String ACTION_REFRESH = "com.glassweather.widget.ACTION_REFRESH";
     private static final long PERIOD = 60L * 60 * 1000;          // 自调度周期：1 小时
     private static final String PREFS = "gw_cache";
-    private static final String KEY_JSON = "json";
+    private static final String KEY_DATA = "data";
 
-    // 默认城市：广东河源（可改经纬度）
-    private static final double HOME_LAT = 23.7331;
-    private static final double HOME_LON = 114.6830;
+    // ★ 高德开放平台 Web 服务 Key（https://console.amap.com 应用管理 → 创建应用 → 添加 Key → Web服务）
+    private static final String AMAP_KEY = "PASTE_YOUR_AMAP_KEY_HERE";
+    // ★ 城市行政区划代码 adcode（默认：广东河源 441600）
+    private static final String CITY_ADCODE = "441600";
     private static final String CITY_NAME = "河源";
+
+    private static final String URL_LIVE = "https://restapi.amap.com/v3/weather/weatherInfo?"
+            + "city=" + CITY_ADCODE + "&extensions=base&key=" + AMAP_KEY;
+    private static final String URL_FORECAST = "https://restapi.amap.com/v3/weather/weatherInfo?"
+            + "city=" + CITY_ADCODE + "&extensions=all&key=" + AMAP_KEY;
 
     // ---------------------------------------------------------------- lifecycle
 
@@ -117,59 +121,51 @@ public class GlassWeatherWidget extends AppWidgetProvider {
         int[] ids = mgr.getAppWidgetIds(cn);
         if (ids == null || ids.length == 0) return;
 
-        String freshJson = fetch();
+        Weather fresh = fetchWeather();
         SharedPreferences sp = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
 
-        if (freshJson != null) {
-            sp.edit().putString(KEY_JSON, freshJson).apply();
-        }
-        String json = freshJson != null ? freshJson : sp.getString(KEY_JSON, null);
-
-        Weather w = (json != null) ? Weather.parse(json) : null;
-        if (w == null && freshJson != null) {
-            // 数据能取到但解析失败：退化为空对象，只改更新时间
-            w = new Weather();
+        Weather w = fresh;
+        boolean stale = false;
+        if (w == null) {                       // 网络失败 → 读缓存
+            w = Weather.fromJson(sp.getString(KEY_DATA, null));
+            stale = w != null && !w.isBlank();
+        } else {
+            sp.edit().putString(KEY_DATA, w.toJson()).apply();
         }
 
-        String updated = new SimpleDateFormat("HH:mm", Locale.CHINA).format(new Date());
-        boolean stale = freshJson == null && w != null && !w.isBlank();
-
+        String now = new SimpleDateFormat("HH:mm", Locale.CHINA).format(new Date());
         for (int id : ids) {
             try {
-                RemoteViews rv = buildViews(app, w, updated, stale);
+                RemoteViews rv = buildViews(app, w, now, stale);
                 mgr.updateAppWidget(id, rv);
             } catch (Exception ignored) {
             }
         }
     }
 
-    private RemoteViews buildViews(Context app, Weather w, String updated, boolean stale) {
+    private RemoteViews buildViews(Context app, Weather w, String now, boolean stale) {
         RemoteViews rv = new RemoteViews(app.getPackageName(), R.layout.widget_weather);
-        rv.setEmptyView(R.id.root, R.id.root);
 
-        // 默认值兜底
-        String emoji = "⛅", cond = w.isBlank() ? "加载中…" : (w.cond == null ? "" : w.cond);
-        String temp = w.isBlank() ? "--°" : w.temp + "°";
+        String temp = (w == null || w.temp == null) ? "--" : w.temp;
+        String cond = (w == null || w.cond == null) ? "加载中…" : w.cond;
 
-        if (!w.isBlank()) {
-            emoji = emojiFor(w.code, w.isDay);
-            if (w.feels != null) cond = cond + " · 体感 " + w.feels + "°";
-        }
-        rv.setTextViewText(R.id.tv_emoji, emoji);
-        rv.setTextViewText(R.id.tv_temp, temp);
+        rv.setTextViewText(R.id.tv_emoji, (w == null || w.isBlank()) ? "⛅" : emojiOf(w.cond));
+        rv.setTextViewText(R.id.tv_temp, temp + "°");
         rv.setTextViewText(R.id.tv_cond, cond);
-        rv.setTextViewText(R.id.tv_city, CITY_NAME);
+        rv.setTextViewText(R.id.tv_city, (w == null || w.city == null) ? CITY_NAME : w.city);
 
-        if (!w.isBlank()) {
-            rv.setTextViewText(R.id.tv_date, w.dateLabel);
-            rv.setTextViewText(R.id.tv_hi, "最高 " + w.hi + "°");
-            rv.setTextViewText(R.id.tv_lo, "最低 " + w.lo + "°");
-            rv.setTextViewText(R.id.tv_precip, w.precip != null ? "降水 " + w.precip + "%" : "降水 --");
-            rv.setTextViewText(R.id.tv_hum, w.hum != null ? "湿度 " + w.hum + "%" : "湿度 --");
+        if (w != null && !w.isBlank()) {
+            if (w.hi != null)  rv.setTextViewText(R.id.tv_hi, "最高 " + w.hi + "°");
+            if (w.lo != null)  rv.setTextViewText(R.id.tv_lo, "最低 " + w.lo + "°");
+            if (w.hum != null) rv.setTextViewText(R.id.tv_humidity, "湿度 " + w.hum);
+            if (w.wind != null) rv.setTextViewText(R.id.tv_wind, "风 " + w.wind);
+            if (w.dateLabel != null) rv.setTextViewText(R.id.tv_date, w.dateLabel);
         }
 
-        rv.setTextViewText(R.id.tv_updated,
-                stale ? "更新于 " + updated + " · 离线缓存" : "更新于 " + updated);
+        // 显示“数据时间”（数据源实际生成时刻），断网时显示缓存时间
+        String tag = (w != null && w.dataTime != null) ? "数据 " + w.dataTime : "更新于 " + now;
+        if (stale) tag += " · 缓存";
+        rv.setTextViewText(R.id.tv_updated, tag);
 
         Intent it = new Intent(app, GlassWeatherWidget.class).setAction(ACTION_REFRESH);
         PendingIntent pi = PendingIntent.getBroadcast(app, 5, it,
@@ -179,201 +175,148 @@ public class GlassWeatherWidget extends AppWidgetProvider {
         return rv;
     }
 
-    // ---------------------------------------------------------------- network
+    // ---------------------------------------------------------------- network（高德 v3）
 
-    private String fetch() {
-        try {
-            StringBuilder url = new StringBuilder("https://api.open-meteo.com/v1/forecast?");
-            url.append("latitude=").append(HOME_LAT);
-            url.append("&longitude=").append(HOME_LON);
-            url.append("&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,is_day");
-            url.append("&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max");
-            url.append("&timezone=Asia%2FShanghai&forecast_days=1");
-
-            HttpURLConnection conn = (HttpURLConnection) new URL(url.toString()).openConnection();
-            conn.setConnectTimeout(12000);
-            conn.setReadTimeout(12000);
-            conn.setRequestProperty("User-Agent", "glass-weather-widget/1.0");
-            conn.setRequestMethod("GET");
-            int code = conn.getResponseCode();
-            if (code != 200) {
-                conn.disconnect();
-                return null;
-            }
-            InputStream in = conn.getInputStream();
-            BufferedReader br = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = br.readLine()) != null) sb.append(line);
-            br.close();
+    private String get(String urlStr) throws Exception {
+        HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
+        conn.setConnectTimeout(10000);
+        conn.setReadTimeout(10000);
+        conn.setRequestProperty("User-Agent", "glass-weather-widget/1.1");
+        conn.setRequestMethod("GET");
+        int code = conn.getResponseCode();
+        if (code != 200) {
             conn.disconnect();
-            return sb.toString();
+            return null;
+        }
+        InputStream in = conn.getInputStream();
+        BufferedReader br = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
+        StringBuilder sb = new StringBuilder();
+        String line;
+        while ((line = br.readLine()) != null) sb.append(line);
+        br.close();
+        conn.disconnect();
+        return sb.toString();
+    }
+
+    private Weather fetchWeather() {
+        try {
+            String liveJson = get(URL_LIVE);
+            String fcJson = get(URL_FORECAST);
+            if (liveJson == null || fcJson == null) return null;
+
+            Weather w = new Weather();
+            JSONObject live = new JSONObject(liveJson);
+            JSONObject fc = new JSONObject(fcJson);
+            if (!"1".equals(live.optString("status")) || !"1".equals(fc.optString("status"))) return null;
+
+            JSONObject l = live.getJSONArray("lives").optJSONObject(0);
+            if (l == null) return null;
+            String city = l.optString("city", "");
+            w.city = (city.isEmpty()) ? CITY_NAME : city;
+            w.cond = l.optString("weather", "");
+            w.temp = num(l.optString("temperature", ""));
+            String hum = l.optString("humidity", "");
+            w.hum = num(hum);
+            if (w.hum != null && !hum.endsWith("%") && !hum.isEmpty()) w.hum += "%";
+            String dir = l.optString("winddirection", "");
+            String pow = l.optString("windpower", "").replace("级", "");
+            w.wind = dir + "风" + pow + "级";
+            w.dataTime = hm(l.optString("reporttime", ""));
+
+            JSONArray casts = fc.optJSONObject("forecasts")
+                    .optJSONArray("casts");
+            if (casts != null && casts.length() > 0) {
+                JSONObject today = casts.optJSONObject(0);
+                w.hi = num(today.optString("daytemp", ""));
+                w.lo = num(today.optString("nighttemp", ""));
+                String date = today.optString("date", "");
+                if (!date.isEmpty()) {
+                    try {
+                        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+                        SimpleDateFormat f = new SimpleDateFormat("M月d日 EEE", Locale.CHINA);
+                        w.dateLabel = f.format(sdf.parse(date));
+                    } catch (Exception e) {
+                        w.dateLabel = date;
+                    }
+                }
+            }
+            return w;
         } catch (Exception e) {
             return null;
         }
     }
 
-    // ---------------------------------------------------------------- helpers
-
-    private static String emojiFor(int code, boolean day) {
-        switch (code) {
-            case 0:
-                return day ? "☀️" : "🌙";
-            case 1:
-                return day ? "🌤️" : "🌙";
-            case 2:
-                return "⛅";
-            case 3:
-                return "☁️";
-            case 45:
-            case 48:
-                return "🌫️";
-            case 51:
-            case 53:
-            case 55:
-            case 56:
-            case 57:
-                return "🌦️";
-            case 61:
-            case 63:
-            case 65:
-            case 66:
-            case 67:
-            case 80:
-                return "🌧️";
-            case 71:
-            case 73:
-            case 75:
-            case 77:
-            case 85:
-            case 86:
-                return "❄️";
-            case 81:
-            case 82:
-            case 95:
-            case 96:
-            case 99:
-                return "⛈️";
-            default:
-                return "⛅";
-        }
+    private static String num(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        if (t.isEmpty() || "暂无".equals(t)) return null;
+        return t;
     }
 
-    /** Open-Meteo WMO 天气代码 → 中文描述 */
-    private static String descFor(int code) {
-        switch (code) {
-            case 0:
-                return "晴";
-            case 1:
-                return "晴间多云";
-            case 2:
-                return "多云";
-            case 3:
-                return "阴";
-            case 45:
-            case 48:
-                return "雾";
-            case 51:
-            case 53:
-            case 55:
-            case 56:
-            case 57:
-                return "毛毛雨";
-            case 61:
-            case 63:
-                return "雨";
-            case 65:
-                return "大雨";
-            case 66:
-            case 67:
-                return "冻雨";
-            case 71:
-            case 73:
-            case 75:
-            case 77:
-                return "雪";
-            case 80:
-                return "阵雨";
-            case 81:
-                return "中阵雨";
-            case 82:
-                return "强阵雨";
-            case 85:
-            case 86:
-                return "阵雪";
-            case 95:
-                return "雷阵雨";
-            case 96:
-            case 99:
-                return "雷暴冰雹";
-            default:
-                return "未知";
-        }
+    private static String hm(String reportTime) {
+        if (reportTime == null || reportTime.length() < 16) return null;
+        return reportTime.substring(11, 16);
     }
 
-    /** 数据模型（解析自 Open-Meteo） */
+    /** 中文天气描述 → emoji */
+    private static String emojiOf(String zh) {
+        if (zh == null) return "⛅";
+        if (zh.contains("雷")) return "⛈️";
+        if (zh.contains("雪")) return "❄️";
+        if (zh.contains("雾") || zh.contains("霾")) return "🌫️";
+        if (zh.contains("暴")) return "⛈️";
+        if (zh.contains("雨")) return "🌧️";
+        if (zh.contains("阴")) return "☁️";
+        if (zh.contains("晴间多云")) return "🌤️";
+        if (zh.contains("多云")) return "⛅";
+        if (zh.contains("晴")) return "☀️";
+        return "⛅";
+    }
+
+    // ---------------------------------------------------------------- model
+
     static class Weather {
-        int code = -1;
-        String cond, temp, feels, hi, lo, precip, hum, dateLabel;
-        boolean isDay = true;
+        String city, cond, temp, hi, lo, hum, wind, dateLabel, dataTime;
 
         boolean isBlank() {
-            return temp == null;
+            return temp == null || temp.isEmpty();
         }
 
-        static Weather parse(String raw) {
+        String toJson() {
             try {
+                JSONObject o = new JSONObject();
+                o.put("city", nz(city)).put("cond", nz(cond)).put("temp", nz(temp))
+                        .put("hi", nz(hi)).put("lo", nz(lo)).put("hum", nz(hum))
+                        .put("wind", nz(wind)).put("dateLabel", nz(dateLabel))
+                        .put("dataTime", nz(dataTime));
+                return o.toString();
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        static Weather fromJson(String s) {
+            if (s == null) return null;
+            try {
+                JSONObject o = new JSONObject(s);
                 Weather w = new Weather();
-                JSONObject o = new JSONObject(raw);
-                JSONObject cur = o.optJSONObject("current");
-                if (cur == null) return w;
-
-                w.temp = str(cur.opt("temperature_2m"));
-                w.feels = str(cur.opt("apparent_temperature"));
-                w.hum = str(cur.opt("relative_humidity_2m"));
-                int ic = cur.optInt("weather_code", -1);
-                w.code = ic;
-                w.isDay = cur.optInt("is_day", 1) == 1;
-                if (ic >= 0) w.cond = descFor(ic);
-
-                JSONObject daily = o.optJSONObject("daily");
-                if (daily != null) {
-                    w.hi = arr(daily, "temperature_2m_max", 0);
-                    w.lo = arr(daily, "temperature_2m_min", 0);
-                    w.precip = arr(daily, "precipitation_probability_max", 0);
-                    String date = arr(daily, "time", 0);
-                    if (date != null && !"null".equals(date)) {
-                        try {
-                            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US);
-                            java.util.TimeZone tz = java.util.TimeZone.getTimeZone("Asia/Shanghai");
-                            sdf.setTimeZone(tz);
-                            Date d = sdf.parse(date);
-                            SimpleDateFormat f = new SimpleDateFormat("M月d日 EEE", Locale.CHINA);
-                            f.setTimeZone(tz);
-                            w.dateLabel = f.format(d);
-                        } catch (Exception e) {
-                            w.dateLabel = date;
-                        }
-                    }
-                }
+                w.city = o.optString("city", null);
+                w.cond = o.optString("cond", null);
+                w.temp = o.optString("temp", null);
+                w.hi = o.optString("hi", null);
+                w.lo = o.optString("lo", null);
+                w.hum = o.optString("hum", null);
+                w.wind = o.optString("wind", null);
+                w.dateLabel = o.optString("dateLabel", null);
+                w.dataTime = o.optString("dataTime", null);
                 return w;
             } catch (Exception e) {
                 return null;
             }
         }
 
-        private static String str(Object v) {
-            if (v == null || v == JSONObject.NULL) return null;
-            String s = v.toString();
-            if ("null".equals(s) || s.isEmpty()) return null;
-            return s;
-        }
-
-        /** 取 daily 数组第 index 项（可能为 null / JSONObject.NULL） */
-        private static String arr(JSONObject daily, String key, int index) {
-            org.json.JSONArray a = daily.optJSONArray(key);
-            if (a == null || a.length() <= index) return null;
-            return str(a.opt(index));
+        private static String nz(String v) {
+            return v == null ? "" : v;
         }
     }
 }
