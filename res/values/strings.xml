@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">玻璃天气</string>
+    <string name="widget_desc">暗黑玻璃质感 · 实时天气小组件</string>
+</resources>
