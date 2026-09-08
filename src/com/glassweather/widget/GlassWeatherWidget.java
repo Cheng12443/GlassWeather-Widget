@@ -223,8 +223,9 @@ public class GlassWeatherWidget extends AppWidgetProvider {
             w.wind = dir + "风" + pow + "级";
             w.dataTime = hm(l.optString("reporttime", ""));
 
-            JSONArray casts = fc.optJSONObject("forecasts")
-                    .optJSONArray("casts");
+            JSONArray fcs = fc.optJSONArray("forecasts");
+            JSONArray casts = (fcs != null && fcs.length() > 0)
+                    ? fcs.optJSONObject(0).optJSONArray("casts") : null;
             if (casts != null && casts.length() > 0) {
                 JSONObject today = casts.optJSONObject(0);
                 w.hi = num(today.optString("daytemp", ""));
