@@ -10,7 +10,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.SystemClock;
-import android.view.View;
 import android.widget.RemoteViews;
 
 import org.json.JSONArray;
@@ -27,7 +26,7 @@ import java.util.Date;
 import java.util.Locale;
 
 /**
- * 玻璃天气 —— 暗黑玻璃质感桌面天气小组件
+ * 玻璃天气 —— 暗黑玻璃质感桌面天气小组件（自动翻页展示更多数据）
  * 数据源：高德开放平台 v3 天气接口（Web 服务，免费，需 Key）
  */
 public class GlassWeatherWidget extends AppWidgetProvider {
@@ -148,47 +147,29 @@ public class GlassWeatherWidget extends AppWidgetProvider {
         RemoteViews rv = new RemoteViews(app.getPackageName(), R.layout.widget_weather);
         boolean blank = (w == null || w.isBlank());
 
-        String temp = blank ? "--" : w.temp;
-        String cond = blank ? "加载中…" : w.cond;
-
         rv.setTextViewText(R.id.tv_emoji, blank ? "⛅" : emojiOf(w.cond));
-        rv.setTextViewText(R.id.tv_temp, temp + "°");
+        rv.setTextViewText(R.id.tv_temp, (blank ? "--" : w.temp) + "°");
+        rv.setTextViewText(R.id.tv_cond, blank ? "加载中…" : condText(w));
+        rv.setTextViewText(R.id.tv_city, (w == null || w.city == null) ? CITY_NAME : w.city);
+        rv.setTextViewText(R.id.tv_date, (blank || w.dateLabel == null) ? "--月--日" : w.dateLabel);
 
-        if (!blank) {
-            StringBuilder c = new StringBuilder(cond);
-            if (w.feels != null) c.append(" · 体感 ").append(w.feels).append("°");
-            rv.setTextViewText(R.id.tv_cond, c.toString());
-            rv.setTextViewText(R.id.tv_city, w.city != null ? w.city : CITY_NAME);
-            if (w.dateLabel != null) rv.setTextViewText(R.id.tv_date, w.dateLabel);
+        // 统计块
+        rv.setTextViewText(R.id.tv_hi, (blank || w.hi == null) ? "--°" : w.hi + "°");
+        rv.setTextViewText(R.id.tv_lo, (blank || w.lo == null) ? "--°" : w.lo + "°");
+        rv.setTextViewText(R.id.tv_humidity, (blank || w.hum == null) ? "--" : w.hum);
+        if (!blank && w.windDir != null) rv.setTextViewText(R.id.tv_wind_dir, "风·" + w.windDir);
+        rv.setTextViewText(R.id.tv_wind, (blank || w.wind == null) ? "--" : w.wind);
 
-            if (w.hi != null) rv.setTextViewText(R.id.tv_hi, w.hi + "°");
-            if (w.lo != null) rv.setTextViewText(R.id.tv_lo, w.lo + "°");
-            if (w.hum != null) rv.setTextViewText(R.id.tv_humidity, w.hum);
-            if (w.windDir != null) rv.setTextViewText(R.id.tv_wind_dir, "风·" + w.windDir);
-            if (w.wind != null) rv.setTextViewText(R.id.tv_wind, w.wind);
-
-            // 今夜 / 明天
-            StringBuilder f = new StringBuilder();
-            if (w.nightWeather != null) {
-                f.append("今夜 ").append(w.nightWeather);
-                if (w.nightTemp != null) f.append(" ").append(w.nightTemp).append("°");
-            }
-            if (w.d2Weather != null) {
-                if (f.length() > 0) f.append("\n");
-                f.append("明天 ").append(w.d2Weather);
-                if (w.d2Hi != null && w.d2Lo != null)
-                    f.append(" ").append(w.d2Hi).append("° / ").append(w.d2Lo).append("°");
-            }
-            if (f.length() > 0) {
-                rv.setViewVisibility(R.id.tv_forecast, View.VISIBLE);
-                rv.setTextViewText(R.id.tv_forecast, f.toString());
-            } else {
-                rv.setViewVisibility(R.id.tv_forecast, View.GONE);
-            }
-        } else {
-            rv.setTextViewText(R.id.tv_cond, cond);
-            rv.setViewVisibility(R.id.tv_forecast, View.GONE);
-        }
+        // 未来页：今夜 / 明天 / 后天
+        rv.setTextViewText(R.id.tv_f1, (blank || w.nightWeather == null)
+                ? "--" : emojiOf(w.nightWeather) + "  今夜  " + w.nightWeather
+                + ((w.nightTemp == null) ? "" : "  " + w.nightTemp + "°"));
+        rv.setTextViewText(R.id.tv_f2, (blank || w.d2Weather == null)
+                ? "--" : emojiOf(w.d2Weather) + "  明天  " + w.d2Weather
+                + ((w.d2Hi == null || w.d2Lo == null) ? "" : "  " + w.d2Hi + "° / " + w.d2Lo + "°"));
+        rv.setTextViewText(R.id.tv_f3, (blank || w.d3Weather == null)
+                ? "--" : emojiOf(w.d3Weather) + "  后天  " + w.d3Weather
+                + ((w.d3Hi == null || w.d3Lo == null) ? "" : "  " + w.d3Hi + "° / " + w.d3Lo + "°"));
 
         String tag = (w != null && w.dataTime != null) ? "数据 " + w.dataTime : "更新于 " + now;
         if (stale) tag += " · 缓存";
@@ -202,13 +183,19 @@ public class GlassWeatherWidget extends AppWidgetProvider {
         return rv;
     }
 
+    private static String condText(Weather w) {
+        StringBuilder c = new StringBuilder(w.cond == null ? "" : w.cond);
+        if (w.feels != null) c.append(" · 体感 ").append(w.feels).append("°");
+        return c.toString();
+    }
+
     // ---------------------------------------------------------------- network（高德 v3）
 
     private String get(String urlStr) throws Exception {
         HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
         conn.setConnectTimeout(10000);
         conn.setReadTimeout(10000);
-        conn.setRequestProperty("User-Agent", "glass-weather-widget/1.2");
+        conn.setRequestProperty("User-Agent", "glass-weather-widget/1.3");
         conn.setRequestMethod("GET");
         int code = conn.getResponseCode();
         if (code != 200) {
@@ -274,10 +261,16 @@ public class GlassWeatherWidget extends AppWidgetProvider {
                     }
                 }
                 if (casts.length() > 1) {
-                    JSONObject tmr = casts.optJSONObject(1);
-                    w.d2Weather = num(tmr.optString("dayweather", ""));
-                    w.d2Hi = num(tmr.optString("daytemp", ""));
-                    w.d2Lo = num(tmr.optString("nighttemp", ""));
+                    JSONObject c1 = casts.optJSONObject(1);
+                    w.d2Weather = num(c1.optString("dayweather", ""));
+                    w.d2Hi = num(c1.optString("daytemp", ""));
+                    w.d2Lo = num(c1.optString("nighttemp", ""));
+                }
+                if (casts.length() > 2) {
+                    JSONObject c2 = casts.optJSONObject(2);
+                    w.d3Weather = num(c2.optString("dayweather", ""));
+                    w.d3Hi = num(c2.optString("daytemp", ""));
+                    w.d3Lo = num(c2.optString("nighttemp", ""));
                 }
             }
             return w;
@@ -356,7 +349,9 @@ public class GlassWeatherWidget extends AppWidgetProvider {
 
     static class Weather {
         String city, cond, temp, feels, hi, lo, hum, windDir, wind, dateLabel, dataTime;
-        String nightWeather, nightTemp, d2Weather, d2Hi, d2Lo;
+        String nightWeather, nightTemp;
+        String d2Weather, d2Hi, d2Lo;   // 明天
+        String d3Weather, d3Hi, d3Lo;   // 后天
 
         boolean isBlank() {
             return temp == null || temp.isEmpty();
@@ -370,7 +365,8 @@ public class GlassWeatherWidget extends AppWidgetProvider {
                         .put("hum", nz(hum)).put("windDir", nz(windDir)).put("wind", nz(wind))
                         .put("dateLabel", nz(dateLabel)).put("dataTime", nz(dataTime))
                         .put("nightWeather", nz(nightWeather)).put("nightTemp", nz(nightTemp))
-                        .put("d2Weather", nz(d2Weather)).put("d2Hi", nz(d2Hi)).put("d2Lo", nz(d2Lo));
+                        .put("d2Weather", nz(d2Weather)).put("d2Hi", nz(d2Hi)).put("d2Lo", nz(d2Lo))
+                        .put("d3Weather", nz(d3Weather)).put("d3Hi", nz(d3Hi)).put("d3Lo", nz(d3Lo));
                 return o.toString();
             } catch (Exception e) {
                 return null;
@@ -398,6 +394,9 @@ public class GlassWeatherWidget extends AppWidgetProvider {
                 w.d2Weather = o.optString("d2Weather", null);
                 w.d2Hi = o.optString("d2Hi", null);
                 w.d2Lo = o.optString("d2Lo", null);
+                w.d3Weather = o.optString("d3Weather", null);
+                w.d3Hi = o.optString("d3Hi", null);
+                w.d3Lo = o.optString("d3Lo", null);
                 return w;
             } catch (Exception e) {
                 return null;
