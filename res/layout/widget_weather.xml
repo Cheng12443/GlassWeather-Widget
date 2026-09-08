@@ -7,218 +7,268 @@
     android:background="@drawable/widget_bg"
     android:paddingLeft="20dp"
     android:paddingRight="20dp"
-    android:paddingTop="16dp"
-    android:paddingBottom="14dp">
+    android:paddingTop="14dp"
+    android:paddingBottom="13dp">
 
-    <!-- 第一行：图标 + 温度/状况 + 城市/日期 -->
-    <LinearLayout
+    <!-- 自动翻页区域：每 4 秒切换 -->
+    <ViewFlipper
+        android:id="@+id/flipper"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:autoStart="true"
+        android:flipInterval="4000"
+        android:inAnimation="@android:anim/fade_in"
+        android:outAnimation="@android:anim/fade_out">
 
-        <TextView
-            android:id="@+id/tv_emoji"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:gravity="center"
-            android:textSize="40sp"
-            android:text="☀️"
-            android:includeFontPadding="false" />
-
+        <!-- ============ 第 1 页：实时天气 ============ -->
         <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:layout_marginLeft="4dp">
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/tv_temp"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="--°"
-                android:textColor="@color/temp_text"
-                android:textSize="44sp"
-                android:textStyle="bold"
-                android:includeFontPadding="false"
-                android:lineSpacingMultiplier="1.0" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
+                <TextView
+                    android:id="@+id/tv_emoji"
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
+                    android:gravity="center"
+                    android:textSize="38sp"
+                    android:text="☀️"
+                    android:includeFontPadding="false" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginLeft="4dp">
+
+                    <TextView
+                        android:id="@+id/tv_temp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--°"
+                        android:textColor="@color/temp_text"
+                        android:textSize="42sp"
+                        android:textStyle="bold"
+                        android:includeFontPadding="false"
+                        android:lineSpacingMultiplier="1.0" />
+
+                    <TextView
+                        android:id="@+id/tv_cond"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="1dp"
+                        android:text="加载中…"
+                        android:textColor="@color/secondary_text"
+                        android:textSize="11.5sp"
+                        android:singleLine="true"
+                        android:ellipsize="end" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="end">
+
+                    <TextView
+                        android:id="@+id/tv_city"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="河源市"
+                        android:textColor="@color/primary_text"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_date"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--月--日"
+                        android:textColor="@color/dim_text"
+                        android:textSize="10.5sp"
+                        android:layout_marginTop="1dp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- 分隔线 -->
             <TextView
-                android:id="@+id/tv_cond"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="10dp"
+                android:background="#14FFFFFF" />
+
+            <!-- 统计块：最高 / 最低 / 湿度 / 风 -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="加载中…"
-                android:textColor="@color/secondary_text"
-                android:textSize="11.5sp"
-                android:singleLine="true"
-                android:ellipsize="end" />
+                android:layout_marginTop="9dp"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="最高"
+                        android:textColor="@color/dim_text"
+                        android:textSize="9.5sp" />
+
+                    <TextView
+                        android:id="@+id/tv_hi"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="1dp"
+                        android:text="--°"
+                        android:textColor="@color/primary_text"
+                        android:textSize="13.5sp"
+                        android:singleLine="true"
+                        android:ellipsize="end" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="最低"
+                        android:textColor="@color/dim_text"
+                        android:textSize="9.5sp" />
+
+                    <TextView
+                        android:id="@+id/tv_lo"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="1dp"
+                        android:text="--°"
+                        android:textColor="@color/primary_text"
+                        android:textSize="13.5sp"
+                        android:singleLine="true"
+                        android:ellipsize="end" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="湿度"
+                        android:textColor="@color/dim_text"
+                        android:textSize="9.5sp" />
+
+                    <TextView
+                        android:id="@+id/tv_humidity"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="1dp"
+                        android:text="--"
+                        android:textColor="@color/primary_text"
+                        android:textSize="13.5sp"
+                        android:singleLine="true"
+                        android:ellipsize="end" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tv_wind_dir"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="风"
+                        android:textColor="@color/dim_text"
+                        android:textSize="9.5sp" />
+
+                    <TextView
+                        android:id="@+id/tv_wind"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="1dp"
+                        android:text="--"
+                        android:textColor="@color/primary_text"
+                        android:textSize="13.5sp"
+                        android:singleLine="true"
+                        android:ellipsize="end" />
+                </LinearLayout>
+            </LinearLayout>
         </LinearLayout>
 
+        <!-- ============ 第 2 页：未来预报 ============ -->
         <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="end">
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
 
             <TextView
-                android:id="@+id/tv_city"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="河源市"
-                android:textColor="@color/primary_text"
-                android:textSize="15sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tv_date"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="--月--日"
+                android:text="未来天气"
                 android:textColor="@color/dim_text"
                 android:textSize="10.5sp"
-                android:layout_marginTop="1dp" />
+                android:letterSpacing="0.1" />
+
+            <TextView
+                android:id="@+id/tv_f1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="7dp"
+                android:text="☔ 今夜  小雨  21°"
+                android:textColor="@color/primary_text"
+                android:textSize="13sp"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/tv_f2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:text="⛅ 明天  多云  31° / 22°"
+                android:textColor="@color/primary_text"
+                android:textSize="13sp"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/tv_f3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:text="⛈️ 后天  雷阵雨  31° / 22°"
+                android:textColor="@color/primary_text"
+                android:textSize="13sp"
+                android:singleLine="true"
+                android:ellipsize="end" />
         </LinearLayout>
-    </LinearLayout>
+    </ViewFlipper>
 
-    <!-- 分隔线 -->
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginTop="11dp"
-        android:background="#14FFFFFF" />
-
-    <!-- 统计块：最高 / 最低 / 湿度 / 风 -->
+    <!-- 底部固定：数据时间 + 刷新 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="9dp"
-        android:orientation="horizontal">
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="最高"
-                android:textColor="@color/dim_text"
-                android:textSize="9.5sp" />
-
-            <TextView
-                android:id="@+id/tv_hi"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="1dp"
-                android:text="--°"
-                android:textColor="@color/primary_text"
-                android:textSize="13.5sp"
-                android:singleLine="true"
-                android:ellipsize="end" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="最低"
-                android:textColor="@color/dim_text"
-                android:textSize="9.5sp" />
-
-            <TextView
-                android:id="@+id/tv_lo"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="1dp"
-                android:text="--°"
-                android:textColor="@color/primary_text"
-                android:textSize="13.5sp"
-                android:singleLine="true"
-                android:ellipsize="end" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="湿度"
-                android:textColor="@color/dim_text"
-                android:textSize="9.5sp" />
-
-            <TextView
-                android:id="@+id/tv_humidity"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="1dp"
-                android:text="--"
-                android:textColor="@color/primary_text"
-                android:textSize="13.5sp"
-                android:singleLine="true"
-                android:ellipsize="end" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/tv_wind_dir"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="风"
-                android:textColor="@color/dim_text"
-                android:textSize="9.5sp" />
-
-            <TextView
-                android:id="@+id/tv_wind"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="1dp"
-                android:text="--"
-                android:textColor="@color/primary_text"
-                android:textSize="13.5sp"
-                android:singleLine="true"
-                android:ellipsize="end" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <!-- 今夜 / 明天 预报条 -->
-    <TextView
-        android:id="@+id/tv_forecast"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:paddingLeft="12dp"
-        android:paddingRight="12dp"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp"
-        android:background="@drawable/forecast_bg"
-        android:text="今夜 小雨 21°\n明天 多云 31° / 22°"
-        android:textColor="#C9D6E6"
-        android:textSize="11.5sp"
-        android:lineSpacingMultiplier="1.25" />
-
-    <!-- 底部：数据时间 + 刷新 -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="7dp"
         android:orientation="horizontal"
         android:gravity="center_vertical">
 
