@@ -111,21 +111,21 @@
             android:singleLine="true" />
 
         <TextView
-            android:id="@+id/tv_precip"
+            android:id="@+id/tv_humidity"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="降水 --%"
+            android:text="湿度 --"
             android:textColor="@color/secondary_text"
             android:textSize="11.5sp"
             android:singleLine="true" />
 
         <TextView
-            android:id="@+id/tv_hum"
+            android:id="@+id/tv_wind"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="湿度 --%"
+            android:text="风 --"
             android:textColor="@color/secondary_text"
             android:textSize="11.5sp"
             android:singleLine="true"
