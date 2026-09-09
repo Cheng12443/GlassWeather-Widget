@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- 文字内容区玻璃衬板：半透明深色，保证动态背景上文字清晰 -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <corners android:radius="24dp" />
-    <solid android:color="#73060B12" />
-</shape>
