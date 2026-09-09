@@ -1,14 +1,67 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- 液态玻璃 + 动态真实天气场景（底层动画帧） -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@drawable/widget_bg"
-    android:paddingLeft="20dp"
-    android:paddingRight="20dp"
-    android:paddingTop="14dp"
-    android:paddingBottom="13dp">
+    android:background="@drawable/widget_bg">
+
+    <!-- 天气动画帧：6 帧循环淡变，帧资源由代码按真实天气替换 -->
+    <ViewFlipper
+        android:id="@+id/liq_flipper"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:autoStart="true"
+        android:flipInterval="900"
+        android:inAnimation="@android:anim/fade_in"
+        android:outAnimation="@android:anim/fade_out">
+        <ImageView
+            android:id="@+id/wf0"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitXY"
+            android:src="@drawable/wx_clear_day_0" />
+        <ImageView
+            android:id="@+id/wf1"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitXY"
+            android:src="@drawable/wx_clear_day_1" />
+        <ImageView
+            android:id="@+id/wf2"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitXY"
+            android:src="@drawable/wx_clear_day_2" />
+        <ImageView
+            android:id="@+id/wf3"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitXY"
+            android:src="@drawable/wx_clear_day_3" />
+        <ImageView
+            android:id="@+id/wf4"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitXY"
+            android:src="@drawable/wx_clear_day_4" />
+        <ImageView
+            android:id="@+id/wf5"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitXY"
+            android:src="@drawable/wx_clear_day_5" />
+    </ViewFlipper>
+
+    <!-- 内容层 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="13dp">
 
     <!-- 自动翻页区域：每 4 秒切换 -->
     <ViewFlipper
@@ -264,6 +317,7 @@
         </LinearLayout>
     </ViewFlipper>
 
+
     <!-- 底部固定：数据时间 + 刷新 -->
     <LinearLayout
         android:layout_width="match_parent"
@@ -291,4 +345,5 @@
             android:textSize="11.5sp"
             android:singleLine="true" />
     </LinearLayout>
-</LinearLayout>
+    </LinearLayout>
+</FrameLayout>
