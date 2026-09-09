@@ -26,7 +26,7 @@ import java.util.Date;
 import java.util.Locale;
 
 /**
- * 玻璃天气 —— 暗黑玻璃质感桌面天气小组件（自动翻页展示更多数据）
+ * 玻璃天气 —— 暗黑玻璃质感桌面天气小组件（静态紧凑排版）
  * 数据源：高德开放平台 v3 天气接口（Web 服务，免费，需 Key）
  */
 public class GlassWeatherWidget extends AppWidgetProvider {
@@ -153,26 +153,29 @@ public class GlassWeatherWidget extends AppWidgetProvider {
         rv.setTextViewText(R.id.tv_city, (w == null || w.city == null) ? CITY_NAME : w.city);
         rv.setTextViewText(R.id.tv_date, (blank || w.dateLabel == null) ? "--月--日" : w.dateLabel);
 
-        // 动态天气场景帧（晴/云/雨/雷/雪/雾 等, 含昼夜区分）
-        if (!blank) setWeatherFrames(app, rv, w.cond);
+        // 统计单行（标签+数值合并，避免多行排版被 2 格高度裁剪）
+        rv.setTextViewText(R.id.tv_hi, "最高 " + ((blank || w.hi == null) ? "--°" : w.hi + "°"));
+        rv.setTextViewText(R.id.tv_lo, "最低 " + ((blank || w.lo == null) ? "--°" : w.lo + "°"));
+        rv.setTextViewText(R.id.tv_humidity, "湿度 " + ((blank || w.hum == null) ? "--" : w.hum));
+        if (!blank && w.wind != null && w.windDir != null) {
+            rv.setTextViewText(R.id.tv_wind, w.windDir + "风" + w.wind);
+        } else {
+            rv.setTextViewText(R.id.tv_wind, "风 --");
+        }
 
-        // 统计块
-        rv.setTextViewText(R.id.tv_hi, (blank || w.hi == null) ? "--°" : w.hi + "°");
-        rv.setTextViewText(R.id.tv_lo, (blank || w.lo == null) ? "--°" : w.lo + "°");
-        rv.setTextViewText(R.id.tv_humidity, (blank || w.hum == null) ? "--" : w.hum);
-        if (!blank && w.windDir != null) rv.setTextViewText(R.id.tv_wind_dir, "风·" + w.windDir);
-        rv.setTextViewText(R.id.tv_wind, (blank || w.wind == null) ? "--" : w.wind);
-
-        // 未来页：今夜 / 明天 / 后天
-        rv.setTextViewText(R.id.tv_f1, (blank || w.nightWeather == null)
-                ? "--" : emojiOf(w.nightWeather) + "  今夜  " + w.nightWeather
-                + ((w.nightTemp == null) ? "" : "  " + w.nightTemp + "°"));
-        rv.setTextViewText(R.id.tv_f2, (blank || w.d2Weather == null)
-                ? "--" : emojiOf(w.d2Weather) + "  明天  " + w.d2Weather
-                + ((w.d2Hi == null || w.d2Lo == null) ? "" : "  " + w.d2Hi + "° / " + w.d2Lo + "°"));
-        rv.setTextViewText(R.id.tv_f3, (blank || w.d3Weather == null)
-                ? "--" : emojiOf(w.d3Weather) + "  后天  " + w.d3Weather
-                + ((w.d3Hi == null || w.d3Lo == null) ? "" : "  " + w.d3Hi + "° / " + w.d3Lo + "°"));
+        // 今夜 · 明天（单行）
+        if (!blank && w.nightWeather != null) {
+            StringBuilder fc = new StringBuilder("今夜 ").append(w.nightWeather);
+            if (w.nightTemp != null) fc.append(" ").append(w.nightTemp).append("°");
+            if (w.d2Weather != null) {
+                fc.append(" · 明天 ").append(w.d2Weather);
+                if (w.d2Hi != null && w.d2Lo != null)
+                    fc.append(" ").append(w.d2Hi).append("° / ").append(w.d2Lo).append("°");
+            }
+            rv.setTextViewText(R.id.tv_forecast, fc.toString());
+        } else {
+            rv.setTextViewText(R.id.tv_forecast, "今夜 --");
+        }
 
         String tag = (w != null && w.dataTime != null) ? "数据 " + w.dataTime : "更新于 " + now;
         if (stale) tag += " · 缓存";
@@ -192,45 +195,13 @@ public class GlassWeatherWidget extends AppWidgetProvider {
         return c.toString();
     }
 
-    // ------------------------------------------------------- 动态天气场景帧
-
-    private static final int[] WF_IDS = {
-            R.id.wf0, R.id.wf1, R.id.wf2, R.id.wf3, R.id.wf4, R.id.wf5
-    };
-
-    /** 中文天气 → 场景资源前缀 */
-    static String sceneKey(String cond) {
-        if (cond == null) return "clear_day";
-        if (cond.contains("雷")) return "thunder";
-        if (cond.contains("雪")) return "snow";
-        if (cond.contains("雾") || cond.contains("霾")) return "fog";
-        if (cond.contains("雨")) return "rain";
-        if (cond.contains("阴")) return "overcast";
-        if (cond.contains("多云")) return "cloud_day";
-        int h = new Date().getHours();
-        boolean day = h >= 6 && h < 19;
-        return day ? "clear_day" : "clear_night";
-    }
-
-    private void setWeatherFrames(Context app, RemoteViews rv, String cond) {
-        String key = sceneKey(cond);
-        try {
-            for (int i = 0; i < WF_IDS.length; i++) {
-                int res = app.getResources().getIdentifier(
-                        "wx_" + key + "_" + i, "drawable", app.getPackageName());
-                if (res != 0) rv.setImageViewResource(WF_IDS[i], res);
-            }
-        } catch (Exception ignored) {
-        }
-    }
-
     // ---------------------------------------------------------------- network（高德 v3）
 
     private String get(String urlStr) throws Exception {
         HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
         conn.setConnectTimeout(10000);
         conn.setReadTimeout(10000);
-        conn.setRequestProperty("User-Agent", "glass-weather-widget/1.3");
+        conn.setRequestProperty("User-Agent", "glass-weather-widget/1.5");
         conn.setRequestMethod("GET");
         int code = conn.getResponseCode();
         if (code != 200) {
@@ -300,12 +271,6 @@ public class GlassWeatherWidget extends AppWidgetProvider {
                     w.d2Weather = num(c1.optString("dayweather", ""));
                     w.d2Hi = num(c1.optString("daytemp", ""));
                     w.d2Lo = num(c1.optString("nighttemp", ""));
-                }
-                if (casts.length() > 2) {
-                    JSONObject c2 = casts.optJSONObject(2);
-                    w.d3Weather = num(c2.optString("dayweather", ""));
-                    w.d3Hi = num(c2.optString("daytemp", ""));
-                    w.d3Lo = num(c2.optString("nighttemp", ""));
                 }
             }
             return w;
@@ -386,7 +351,6 @@ public class GlassWeatherWidget extends AppWidgetProvider {
         String city, cond, temp, feels, hi, lo, hum, windDir, wind, dateLabel, dataTime;
         String nightWeather, nightTemp;
         String d2Weather, d2Hi, d2Lo;   // 明天
-        String d3Weather, d3Hi, d3Lo;   // 后天
 
         boolean isBlank() {
             return temp == null || temp.isEmpty();
@@ -400,8 +364,7 @@ public class GlassWeatherWidget extends AppWidgetProvider {
                         .put("hum", nz(hum)).put("windDir", nz(windDir)).put("wind", nz(wind))
                         .put("dateLabel", nz(dateLabel)).put("dataTime", nz(dataTime))
                         .put("nightWeather", nz(nightWeather)).put("nightTemp", nz(nightTemp))
-                        .put("d2Weather", nz(d2Weather)).put("d2Hi", nz(d2Hi)).put("d2Lo", nz(d2Lo))
-                        .put("d3Weather", nz(d3Weather)).put("d3Hi", nz(d3Hi)).put("d3Lo", nz(d3Lo));
+                        .put("d2Weather", nz(d2Weather)).put("d2Hi", nz(d2Hi)).put("d2Lo", nz(d2Lo));
                 return o.toString();
             } catch (Exception e) {
                 return null;
@@ -429,9 +392,6 @@ public class GlassWeatherWidget extends AppWidgetProvider {
                 w.d2Weather = o.optString("d2Weather", null);
                 w.d2Hi = o.optString("d2Hi", null);
                 w.d2Lo = o.optString("d2Lo", null);
-                w.d3Weather = o.optString("d3Weather", null);
-                w.d3Hi = o.optString("d3Hi", null);
-                w.d3Lo = o.optString("d3Lo", null);
                 return w;
             } catch (Exception e) {
                 return null;
