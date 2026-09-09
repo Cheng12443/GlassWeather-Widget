@@ -153,6 +153,9 @@ public class GlassWeatherWidget extends AppWidgetProvider {
         rv.setTextViewText(R.id.tv_city, (w == null || w.city == null) ? CITY_NAME : w.city);
         rv.setTextViewText(R.id.tv_date, (blank || w.dateLabel == null) ? "--月--日" : w.dateLabel);
 
+        // 动态天气场景帧（晴/云/雨/雷/雪/雾 等, 含昼夜区分）
+        if (!blank) setWeatherFrames(app, rv, w.cond);
+
         // 统计块
         rv.setTextViewText(R.id.tv_hi, (blank || w.hi == null) ? "--°" : w.hi + "°");
         rv.setTextViewText(R.id.tv_lo, (blank || w.lo == null) ? "--°" : w.lo + "°");
@@ -187,6 +190,38 @@ public class GlassWeatherWidget extends AppWidgetProvider {
         StringBuilder c = new StringBuilder(w.cond == null ? "" : w.cond);
         if (w.feels != null) c.append(" · 体感 ").append(w.feels).append("°");
         return c.toString();
+    }
+
+    // ------------------------------------------------------- 动态天气场景帧
+
+    private static final int[] WF_IDS = {
+            R.id.wf0, R.id.wf1, R.id.wf2, R.id.wf3, R.id.wf4, R.id.wf5
+    };
+
+    /** 中文天气 → 场景资源前缀 */
+    static String sceneKey(String cond) {
+        if (cond == null) return "clear_day";
+        if (cond.contains("雷")) return "thunder";
+        if (cond.contains("雪")) return "snow";
+        if (cond.contains("雾") || cond.contains("霾")) return "fog";
+        if (cond.contains("雨")) return "rain";
+        if (cond.contains("阴")) return "overcast";
+        if (cond.contains("多云")) return "cloud_day";
+        int h = new Date().getHours();
+        boolean day = h >= 6 && h < 19;
+        return day ? "clear_day" : "clear_night";
+    }
+
+    private void setWeatherFrames(Context app, RemoteViews rv, String cond) {
+        String key = sceneKey(cond);
+        try {
+            for (int i = 0; i < WF_IDS.length; i++) {
+                int res = app.getResources().getIdentifier(
+                        "wx_" + key + "_" + i, "drawable", app.getPackageName());
+                if (res != 0) rv.setImageViewResource(WF_IDS[i], res);
+            }
+        } catch (Exception ignored) {
+        }
     }
 
     // ---------------------------------------------------------------- network（高德 v3）
