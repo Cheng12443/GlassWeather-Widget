@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="temp_text">#F7FAFF</color>
-    <color name="primary_text">#DDE7F2</color>
-    <color name="secondary_text">#9DB0C8</color>
-    <color name="dim_text">#6E829B</color>
-    <color name="accent_text">#9CC5FF</color>
+    <color name="temp_text">#FFFFFF</color>
+    <color name="primary_text">#EEF4FB</color>
+    <color name="secondary_text">#B4C6DC</color>
+    <color name="dim_text">#96A9C0</color>
+    <color name="accent_text">#A8CDFF</color>
 </resources>
