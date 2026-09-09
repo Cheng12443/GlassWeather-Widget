@@ -1,5 +1,6 @@
 #!/bin/bash
 # 手工构建玻璃天气小组件 APK（无需 Gradle）
+# 真实高德 Key 从 /workspace/.amap_key 注入，不进源码仓库
 set -e
 BT=/workspace/sdk/android-sdk/build-tools/34.0.0
 PLAT=/workspace/sdk/android-sdk/platforms/android-36/android.jar
@@ -7,8 +8,22 @@ BIN=/workspace/sdk/bin
 PROJ=/workspace/glasswidget
 cd "$PROJ"
 
-rm -rf build gen classes
-mkdir -p build gen classes
+# 若缺少天气动画帧资源则自动生成（需 python3 + Pillow）
+if [ ! -f res/drawable-nodpi/wx_clear_day_5.png ]; then
+  echo "[0a] 生成天气动画帧..."
+  python3 tools/gen_frames.py >/dev/null || { echo "!! 帧生成失败（需要 Pillow: pip install pillow）" >&2; exit 1; }
+fi
+
+rm -rf build gen classes jsrc
+mkdir -p build gen classes jsrc/com/glassweather/widget
+
+echo "[0] 注入 AMap Key..."
+if [ ! -f /workspace/.amap_key ]; then
+  echo "!! 缺少 /workspace/.amap_key（高德 Web 服务 Key）" >&2; exit 1
+fi
+KEY=$(tr -d '\r\n ' < /workspace/.amap_key)
+sed "s/PASTE_YOUR_AMAP_KEY_HERE/$KEY/g" \
+  src/com/glassweather/widget/GlassWeatherWidget.java > jsrc/com/glassweather/widget/GlassWeatherWidget.java
 
 echo "[1/6] aapt2 compile 资源..."
 "$BIN/aapt2" compile --dir res -o build/res.zip
@@ -23,7 +38,7 @@ echo "[2/6] aapt2 link..."
   build/res.zip
 
 echo "[3/6] javac 编译 Java..."
-find src gen -name '*.java' > build/sources.txt
+find jsrc gen -name '*.java' > build/sources.txt
 javac -source 8 -target 8 -bootclasspath "$PLAT" -encoding UTF-8 -d classes @build/sources.txt 2>&1 | grep -v "bootstrap class path\|source value 8\|target value 8\|^1 warning" || true
 
 echo "[4/6] d8 打包 classes.dex..."
@@ -39,10 +54,8 @@ dex = '/workspace/glasswidget/build/dex/classes.dex'
 tmp = '/workspace/glasswidget/build/app-merged.apk'
 shutil.copy(src, tmp)
 with zipfile.ZipFile(tmp, 'a', zipfile.ZIP_DEFLATED) as z:
-    if 'classes.dex' in z.namelist():
-        pass
     z.write(dex, 'classes.dex')
-print('classes.dex merged, total entries ok')
+print('classes.dex merged')
 EOF
 "$BIN/zipalign" -f 4 build/app-merged.apk build/app-aligned.apk
 
