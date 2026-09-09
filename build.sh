@@ -8,12 +8,6 @@ BIN=/workspace/sdk/bin
 PROJ=/workspace/glasswidget
 cd "$PROJ"
 
-# 若缺少天气动画帧资源则自动生成（需 python3 + Pillow）
-if [ ! -f res/drawable-nodpi/wx_clear_day_5.png ]; then
-  echo "[0a] 生成天气动画帧..."
-  python3 tools/gen_frames.py >/dev/null || { echo "!! 帧生成失败（需要 Pillow: pip install pillow）" >&2; exit 1; }
-fi
-
 rm -rf build gen classes jsrc
 mkdir -p build gen classes jsrc/com/glassweather/widget
 
